@@ -13,7 +13,7 @@ interface UploadFile {
   documentId?: number;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9001/api';
 
 const SUPPORTED_EXTENSIONS = [
   '.pdf', '.doc', '.docx', '.txt', '.rtf', '.odt',
@@ -210,15 +210,15 @@ export default function UploadPage() {
         <div className="flex items-center gap-4">
           <Link
             href="/storage"
-            className="\1bg-gray-100 dark:bg-gray-800\2"
+            className="rounded-lg p-2 hover:bg-gray-100 transition-colors"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
             </svg>
           </Link>
           <div>
-            <h1 className="\1text-gray-900 dark:text-white\2">파일 업로드</h1>
-            <p className="\1text-gray-500 dark:text-gray-400\2">
+            <h1 className="text-2xl font-bold text-gray-900">파일 업로드</h1>
+            <p className="text-gray-500">
               여러 파일을 드래그 앤 드롭하거나 선택하여 업로드하세요.
             </p>
           </div>
@@ -265,15 +265,15 @@ export default function UploadPage() {
           <p className={`text-lg font-medium ${isDragging ? 'text-indigo-600' : 'text-gray-900'}`}>
             {isDragging ? '여기에 파일을 놓으세요' : '파일을 드래그하거나 클릭하여 선택'}
           </p>
-          <p className="\1text-gray-500 dark:text-gray-400\2">
+          <p className="mt-1 text-sm text-gray-500">
             최대 100MB / 지원 형식: PDF, Word, Excel, PowerPoint, 이미지, Markdown 등
           </p>
         </div>
       </div>
 
       {/* Tags */}
-      <div className="\1bg-white dark:bg-gray-900\2">
-        <h3 className="\1text-gray-900 dark:text-white\2">태그 (선택사항)</h3>
+      <div className="rounded-xl bg-white p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3">태그 (선택사항)</h3>
         <div className="flex flex-wrap gap-2 mb-3">
           {tags.map((tag) => (
             <span
@@ -299,7 +299,7 @@ export default function UploadPage() {
             onChange={(e) => setTagInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && addTag()}
             placeholder="태그 입력 후 Enter"
-            className="\1border-gray-300 dark:border-gray-700\2"
+            className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
           />
           <button
             onClick={addTag}
@@ -312,10 +312,10 @@ export default function UploadPage() {
 
       {/* File List */}
       {files.length > 0 && (
-        <div className="\1bg-white dark:bg-gray-900\2">
-          <div className="\1border-gray-200 dark:border-gray-700\2">
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
             <div className="flex items-center gap-4">
-              <h3 className="\1text-gray-900 dark:text-white\2">
+              <h3 className="text-lg font-semibold text-gray-900">
                 업로드 파일 ({files.length})
               </h3>
               <div className="flex items-center gap-2 text-xs">
@@ -325,7 +325,7 @@ export default function UploadPage() {
                   </span>
                 )}
                 {pendingCount > 0 && (
-                  <span className="\1bg-gray-100 dark:bg-gray-800\2">
+                  <span className="px-2 py-1 rounded bg-gray-100 text-gray-800">
                     대기 {pendingCount}
                   </span>
                 )}
@@ -339,7 +339,7 @@ export default function UploadPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setFiles([])}
-                className="\1text-gray-800 dark:text-gray-200\2"
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
               >
                 전체 삭제
               </button>
@@ -363,7 +363,7 @@ export default function UploadPage() {
             </div>
           </div>
 
-          <ul className="\1divide-gray-200 dark:divide-gray-700\2">
+          <ul className="divide-y divide-gray-200">
             {files.map((file) => (
               <li key={file.id} className="px-4 py-3 flex items-center gap-4">
                 {/* Icon */}
@@ -387,7 +387,7 @@ export default function UploadPage() {
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
                   ) : (
-                    <svg className="\1text-gray-400 dark:text-gray-500\2" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                     </svg>
                   )}
@@ -396,7 +396,7 @@ export default function UploadPage() {
                 {/* File Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="\1text-gray-900 dark:text-white\2">
+                    <p className="text-sm font-medium text-gray-900 truncate">
                       {file.file.name}
                     </p>
                     {file.status === 'completed' && file.documentId && (
@@ -409,7 +409,7 @@ export default function UploadPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="\1text-gray-500 dark:text-gray-400\2">{formatSize(file.file.size)}</span>
+                    <span className="text-xs text-gray-500">{formatSize(file.file.size)}</span>
                     {file.error && (
                       <span className="text-xs text-red-600">{file.error}</span>
                     )}
@@ -427,7 +427,7 @@ export default function UploadPage() {
                 {/* Actions */}
                 <button
                   onClick={() => removeFile(file.id)}
-                  className="\1text-gray-600 dark:text-gray-400\2"
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
                 >
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -440,39 +440,39 @@ export default function UploadPage() {
       )}
 
       {/* Supported Formats */}
-      <div className="\1bg-gray-50 dark:bg-gray-800\2">
-        <h3 className="\1text-gray-900 dark:text-white\2">지원 파일 형식</h3>
-        <div className="\1text-gray-600 dark:text-gray-400\2">
+      <div className="rounded-xl bg-gray-50 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">지원 파일 형식</h3>
+        <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 sm:grid-cols-4">
           <div>
-            <p className="\1text-gray-900 dark:text-white\2">문서</p>
+            <p className="font-medium text-gray-900 mb-1">문서</p>
             <p>PDF, DOC, DOCX, TXT, RTF</p>
           </div>
           <div>
-            <p className="\1text-gray-900 dark:text-white\2">스프레드시트</p>
+            <p className="font-medium text-gray-900 mb-1">스프레드시트</p>
             <p>XLS, XLSX, CSV</p>
           </div>
           <div>
-            <p className="\1text-gray-900 dark:text-white\2">프레젠테이션</p>
+            <p className="font-medium text-gray-900 mb-1">프레젠테이션</p>
             <p>PPT, PPTX</p>
           </div>
           <div>
-            <p className="\1text-gray-900 dark:text-white\2">이미지</p>
+            <p className="font-medium text-gray-900 mb-1">이미지</p>
             <p>JPG, PNG, GIF, SVG, WEBP</p>
           </div>
           <div>
-            <p className="\1text-gray-900 dark:text-white\2">마크다운</p>
+            <p className="font-medium text-gray-900 mb-1">마크다운</p>
             <p>MD, MARKDOWN</p>
           </div>
           <div>
-            <p className="\1text-gray-900 dark:text-white\2">데이터</p>
+            <p className="font-medium text-gray-900 mb-1">데이터</p>
             <p>JSON, XML, YAML</p>
           </div>
           <div>
-            <p className="\1text-gray-900 dark:text-white\2">압축파일</p>
+            <p className="font-medium text-gray-900 mb-1">압축파일</p>
             <p>ZIP, TAR, GZ, 7Z</p>
           </div>
           <div>
-            <p className="\1text-gray-900 dark:text-white\2">기타</p>
+            <p className="font-medium text-gray-900 mb-1">기타</p>
             <p>최대 100MB</p>
           </div>
         </div>
