@@ -52,6 +52,7 @@ export interface PPTFile {
   size: number;
   created_at: number;
   download_url: string;
+  mode?: 'quick' | 'pro';
 }
 
 // Stats Types

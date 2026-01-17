@@ -9,6 +9,14 @@ export default function SettingsPage() {
   const [apiUrl, setApiUrl] = useState('http://localhost:9001');
   const [n8nUrl, setN8nUrl] = useState('http://localhost:5678');
 
+  // AI API Keys
+  const [geminiKey, setGeminiKey] = useState('');
+  const [anthropicKey, setAnthropicKey] = useState('');
+  const [openaiKey, setOpenaiKey] = useState('');
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [showAnthropicKey, setShowAnthropicKey] = useState(false);
+  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+
   useEffect(() => {
     async function loadHealth() {
       const result = await getHealth();
@@ -17,7 +25,23 @@ export default function SettingsPage() {
       }
     }
     loadHealth();
+
+    // Load saved API keys from environment or localStorage
+    if (typeof window !== 'undefined') {
+      setGeminiKey(localStorage.getItem('gemini_api_key') || '');
+      setAnthropicKey(localStorage.getItem('anthropic_api_key') || '');
+      setOpenaiKey(localStorage.getItem('openai_api_key') || '');
+    }
   }, []);
+
+  const handleSaveApiKeys = () => {
+    if (typeof window !== 'undefined') {
+      if (geminiKey) localStorage.setItem('gemini_api_key', geminiKey);
+      if (anthropicKey) localStorage.setItem('anthropic_api_key', anthropicKey);
+      if (openaiKey) localStorage.setItem('openai_api_key', openaiKey);
+      alert('API 키가 저장되었습니다');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -54,6 +78,132 @@ export default function SettingsPage() {
               onChange={(e) => setN8nUrl(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
+          </div>
+        </div>
+      </div>
+
+      {/* AI API Keys */}
+      <div className="rounded-xl bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">AI API 키 관리</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Pro Mode 및 고급 AI 기능을 사용하려면 API 키를 설정하세요
+        </p>
+
+        <div className="space-y-4">
+          {/* Gemini API Key */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Google Gemini API Key
+            </label>
+            <div className="relative">
+              <input
+                type={showGeminiKey ? "text" : "password"}
+                value={geminiKey}
+                onChange={(e) => setGeminiKey(e.target.value)}
+                placeholder="AIza..."
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 pr-10 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowGeminiKey(!showGeminiKey)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showGeminiKey ? (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Anthropic API Key */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Anthropic Claude API Key
+              <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Pro Mode</span>
+            </label>
+            <div className="relative">
+              <input
+                type={showAnthropicKey ? "text" : "password"}
+                value={anthropicKey}
+                onChange={(e) => setAnthropicKey(e.target.value)}
+                placeholder="sk-ant-..."
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 pr-10 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowAnthropicKey(!showAnthropicKey)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showAnthropicKey ? (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* OpenAI API Key */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              OpenAI API Key
+            </label>
+            <div className="relative">
+              <input
+                type={showOpenaiKey ? "text" : "password"}
+                value={openaiKey}
+                onChange={(e) => setOpenaiKey(e.target.value)}
+                placeholder="sk-..."
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 pr-10 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowOpenaiKey(!showOpenaiKey)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showOpenaiKey ? (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+
+          <button
+            onClick={handleSaveApiKeys}
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            저장
+          </button>
+
+          <div className="mt-4 rounded-lg bg-blue-50 p-4 text-sm text-blue-700">
+            <p className="font-medium mb-1">💡 API 키 발급 방법</p>
+            <ul className="space-y-1 text-xs">
+              <li>• Gemini: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="underline">Google AI Studio</a></li>
+              <li>• Claude: <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="underline">Anthropic Console</a></li>
+              <li>• OpenAI: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="underline">OpenAI Platform</a></li>
+            </ul>
           </div>
         </div>
       </div>

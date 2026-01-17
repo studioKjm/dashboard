@@ -1,18 +1,42 @@
 import { ApiResponse, HealthStatus, PPTFile, Workflow, WorkflowExecution } from '@/types';
+import { getApiKey } from './auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9001';
 const N8N_BASE_URL = process.env.NEXT_PUBLIC_N8N_URL || 'http://localhost:5678';
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || 'autom-api-key-2026';
+
+function formatApiError(detail: unknown): string {
+  // FastAPI 유효성 검사 에러 배열 처리
+  if (Array.isArray(detail)) {
+    return detail
+      .map((err) => {
+        if (typeof err === 'object' && err !== null && 'msg' in err) {
+          const loc = (err as { loc?: string[] }).loc;
+          const field = loc ? loc[loc.length - 1] : 'unknown';
+          return `${field}: ${(err as { msg: string }).msg}`;
+        }
+        return String(err);
+      })
+      .join(', ');
+  }
+  if (typeof detail === 'string') {
+    return detail;
+  }
+  return 'Request failed';
+}
 
 async function fetchApi<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   try {
+    // Priority: Environment variable > localStorage > fallback
+    // This prevents localStorage from overriding the correct environment variable
+    const apiKey = process.env.NEXT_PUBLIC_API_KEY || getApiKey() || 'autom-api-key-2026';
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers: {
-        'X-API-Key': API_KEY,
+        'X-API-Key': apiKey,
         'Content-Type': 'application/json',
         ...options.headers,
       },
@@ -21,9 +45,19 @@ async function fetchApi<T>(
     const data = await response.json();
 
     if (!response.ok) {
+      // Auto-cleanup localStorage on 401 Unauthorized
+      if (response.status === 401 && typeof window !== 'undefined') {
+        const storedKey = getApiKey();
+        // Only clear if localStorage key is different from env var
+        if (storedKey && storedKey !== process.env.NEXT_PUBLIC_API_KEY) {
+          localStorage.removeItem('api_key');
+          console.warn('Invalid API key removed from localStorage. Please refresh the page.');
+        }
+      }
+
       return {
         success: false,
-        error: data.detail || data.error || 'Request failed',
+        error: formatApiError(data.detail) || data.error || 'Request failed',
       };
     }
 
@@ -56,10 +90,46 @@ export async function generatePPT(slides: any[], title: string, filename: string
   });
 }
 
-export async function generatePPTFromPrompt(prompt: string, maxSlides: number = 10): Promise<ApiResponse<any>> {
+export async function generatePPTFromPrompt(
+  prompt: string,
+  maxSlides: number = 10,
+  aiProvider: string = 'gemini'
+): Promise<ApiResponse<any>> {
   return fetchApi('/api/ppt/generate-from-prompt', {
     method: 'POST',
-    body: JSON.stringify({ prompt, max_slides: maxSlides, ai_provider: 'claude' }),
+    body: JSON.stringify({ prompt, max_slides: maxSlides, ai_provider: aiProvider }),
+  });
+}
+
+// PPT Pro Mode APIs
+export async function getProStatus(): Promise<ApiResponse<{
+  pro_available: boolean;
+  anthropic_api_key_configured: boolean;
+  node_js_available: boolean;
+  estimated_cost_per_generation: string;
+  features: string[];
+}>> {
+  return fetchApi('/api/ppt/pro/status');
+}
+
+export async function generatePPTPro(
+  topic: string,
+  maxSlides: number = 12,
+  context: string = '',
+  theme: string = 'corporate'
+): Promise<ApiResponse<{
+  success: boolean;
+  file_path?: string;
+  download_url?: string;
+  slides_count: number;
+  research_summary: string;
+  stages_completed: string[];
+  token_usage: { input: number; output: number };
+  error?: string;
+}>> {
+  return fetchApi('/api/ppt/generate-pro', {
+    method: 'POST',
+    body: JSON.stringify({ topic, max_slides: maxSlides, context, theme }),
   });
 }
 
