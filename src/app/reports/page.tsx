@@ -165,61 +165,68 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="\1text-gray-900 dark:text-white\2">리포트</h1>
-          <p className="\1text-gray-500 dark:text-gray-400\2">워크플로우 실행 통계 및 분석</p>
+          <h1 className="text-2xl font-bold text-gray-900">리포트</h1>
+          <p className="text-gray-500">워크플로우 실행 통계 및 분석</p>
         </div>
         <button
           onClick={() => window.print()}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+          </svg>
           리포트 출력
         </button>
       </div>
 
       {/* Period Selector */}
-      <div className="\1bg-white dark:bg-gray-900\2">
-        <div className="flex gap-2">
-          {(['daily', 'weekly', 'monthly'] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                period === p
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {p === 'daily' ? '일간' : p === 'weekly' ? '주간' : '월간'}
-            </button>
-          ))}
+      <div className="rounded-xl bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex gap-2">
+            {(['daily', 'weekly', 'monthly'] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                  period === p
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {p === 'daily' ? '일간' : p === 'weekly' ? '주간' : '월간'}
+              </button>
+            ))}
+          </div>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          />
+          <div className="flex-1">
+            <span className="text-sm text-gray-500">
+              기간: <strong className="text-gray-900">{reportData.period}</strong>
+            </span>
+          </div>
         </div>
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="\1border-gray-300 dark:border-gray-700\2"
-        />
-        <span className="\1text-gray-500 dark:text-gray-400\2">
-          기간: <strong>{reportData.period}</strong>
-        </span>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="\1bg-white dark:bg-gray-900\2">
-          <p className="\1text-gray-500 dark:text-gray-400\2">총 실행</p>
-          <p className="\1text-gray-900 dark:text-white\2">{reportData.totalExecutions}</p>
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">총 실행</p>
+          <p className="mt-2 text-3xl font-bold text-gray-900">{reportData.totalExecutions}</p>
         </div>
-        <div className="\1bg-white dark:bg-gray-900\2">
-          <p className="\1text-gray-500 dark:text-gray-400\2">성공</p>
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">성공</p>
           <p className="mt-2 text-3xl font-bold text-green-600">{reportData.successCount}</p>
         </div>
-        <div className="\1bg-white dark:bg-gray-900\2">
-          <p className="\1text-gray-500 dark:text-gray-400\2">실패</p>
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">실패</p>
           <p className="mt-2 text-3xl font-bold text-red-600">{reportData.failedCount}</p>
         </div>
-        <div className="\1bg-white dark:bg-gray-900\2">
-          <p className="\1text-gray-500 dark:text-gray-400\2">성공률</p>
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">성공률</p>
           <p className="mt-2 text-3xl font-bold text-indigo-600">
             {reportData.successRate.toFixed(1)}%
           </p>
@@ -228,10 +235,10 @@ export default function ReportsPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Top Workflows */}
-        <div className="\1bg-white dark:bg-gray-900\2">
-          <h2 className="\1text-gray-900 dark:text-white\2">Top 워크플로우</h2>
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Top 워크플로우</h2>
           {reportData.topWorkflows.length === 0 ? (
-            <p className="\1text-gray-500 dark:text-gray-400\2">데이터가 없습니다</p>
+            <p className="text-center py-8 text-gray-500">데이터가 없습니다</p>
           ) : (
             <div className="space-y-4">
               {reportData.topWorkflows.map((wf, index) => (
@@ -240,11 +247,9 @@ export default function ReportsPage() {
                     {index + 1}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="\1text-gray-900 dark:text-white\2">{wf.name}</p>
-                    <div className="\1text-gray-500 dark:text-gray-400\2">
-                      <span>{wf.count}회 실행</span>
-                      <span>•</span>
-                      <span className={wf.successRate >= 90 ? 'text-green-600' : wf.successRate >= 70 ? 'text-yellow-600' : 'text-red-600'}>
+                    <p className="text-sm font-medium text-gray-900 truncate">{wf.name}</p>
+                    <div className="text-xs text-gray-500">
+                      {wf.count}회 실행 • <span className={wf.successRate >= 90 ? 'text-green-600' : wf.successRate >= 70 ? 'text-yellow-600' : 'text-red-600'}>
                         {wf.successRate.toFixed(0)}% 성공
                       </span>
                     </div>
@@ -266,8 +271,8 @@ export default function ReportsPage() {
         </div>
 
         {/* Error Summary */}
-        <div className="\1bg-white dark:bg-gray-900\2">
-          <h2 className="\1text-gray-900 dark:text-white\2">에러 요약</h2>
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">에러 요약</h2>
           {reportData.errorSummary.length === 0 ? (
             <div className="text-center py-8">
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-green-100 mb-4">
@@ -275,7 +280,7 @@ export default function ReportsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <p className="\1text-gray-500 dark:text-gray-400\2">에러가 없습니다</p>
+              <p className="text-sm text-gray-500">에러가 없습니다</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -295,41 +300,41 @@ export default function ReportsPage() {
       </div>
 
       {/* Performance Metrics */}
-      <div className="\1bg-white dark:bg-gray-900\2">
-        <h2 className="\1text-gray-900 dark:text-white\2">성능 지표</h2>
+      <div className="rounded-xl bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">성능 지표</h2>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           <div className="text-center">
-            <p className="\1text-gray-500 dark:text-gray-400\2">평균 처리 시간</p>
-            <p className="\1text-gray-900 dark:text-white\2">
+            <p className="text-sm font-medium text-gray-500">평균 처리 시간</p>
+            <p className="mt-2 text-2xl font-bold text-gray-900">
               {formatDuration(reportData.avgDuration)}
             </p>
           </div>
           <div className="text-center">
-            <p className="\1text-gray-500 dark:text-gray-400\2">최고 성공률 워크플로우</p>
-            <p className="\1text-gray-900 dark:text-white\2">
+            <p className="text-sm font-medium text-gray-500">최고 성공률 워크플로우</p>
+            <p className="mt-2 text-lg font-semibold text-gray-900 truncate">
               {reportData.topWorkflows[0]?.name || '-'}
             </p>
           </div>
           <div className="text-center">
-            <p className="\1text-gray-500 dark:text-gray-400\2">활성 워크플로우</p>
-            <p className="\1text-gray-900 dark:text-white\2">
+            <p className="text-sm font-medium text-gray-500">활성 워크플로우</p>
+            <p className="mt-2 text-2xl font-bold text-gray-900">
               {workflows.filter((w) => w.status === 'active').length}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Print-friendly summary */}
-      <div className="\1bg-white dark:bg-gray-900\2">
-        <h2 className="\1text-gray-900 dark:text-white\2">리포트 요약</h2>
-        <div className="\1text-gray-700 dark:text-gray-300\2">
+      {/* Report Summary */}
+      <div className="rounded-xl bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">리포트 요약</h2>
+        <div className="text-sm text-gray-700 space-y-2">
           <p>
             <strong>{reportData.period}</strong> 기간 동안 총 <strong>{reportData.totalExecutions}건</strong>의
             워크플로우가 실행되었습니다. 성공률은 <strong>{reportData.successRate.toFixed(1)}%</strong>이며,
             평균 처리 시간은 <strong>{formatDuration(reportData.avgDuration)}</strong>입니다.
           </p>
           {reportData.errorSummary.length > 0 && (
-            <p>
+            <p className="text-red-700">
               가장 빈번한 에러는 <strong>"{reportData.errorSummary[0]?.error}"</strong>로,
               {reportData.errorSummary[0]?.count}회 발생했습니다.
             </p>
