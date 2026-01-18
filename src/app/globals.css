@@ -42,3 +42,10 @@ body {
 .animate-pulse-slow {
   animation: pulse 2s ease-in-out infinite;
 }
+
+/* Hide Next.js dev tools */
+#__next-build-watcher,
+[data-nextjs-dialog-overlay],
+nextjs-portal {
+  display: none !important;
+}

@@ -1,5 +1,5 @@
 import { ApiResponse, HealthStatus, PPTFile, Workflow, WorkflowExecution } from '@/types';
-import { getApiKey } from './auth';
+import { getApiKey, getAccessToken, refreshAccessToken, clearAuthTokens } from './auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9001';
 const N8N_BASE_URL = process.env.NEXT_PUBLIC_N8N_URL || 'http://localhost:5678';
@@ -26,32 +26,65 @@ function formatApiError(detail: unknown): string {
 
 async function fetchApi<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  isRetry: boolean = false
 ): Promise<ApiResponse<T>> {
   try {
-    // Priority: Environment variable > localStorage > fallback
-    // This prevents localStorage from overriding the correct environment variable
-    const apiKey = process.env.NEXT_PUBLIC_API_KEY || getApiKey() || 'autom-api-key-2026';
+    // 인증 헤더 우선순위: JWT > API Key
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...options.headers as Record<string, string>,
+    };
+
+    const accessToken = getAccessToken();
+    if (accessToken) {
+      // JWT 토큰이 있으면 Bearer 인증 사용
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    } else {
+      // JWT 토큰이 없으면 API Key 사용 (하위 호환성)
+      const apiKey = process.env.NEXT_PUBLIC_API_KEY || getApiKey() || 'autom-api-key-2026';
+      headers['X-API-Key'] = apiKey;
+    }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
-      headers: {
-        'X-API-Key': apiKey,
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-      // Auto-cleanup localStorage on 401 Unauthorized
-      if (response.status === 401 && typeof window !== 'undefined') {
-        const storedKey = getApiKey();
-        // Only clear if localStorage key is different from env var
-        if (storedKey && storedKey !== process.env.NEXT_PUBLIC_API_KEY) {
-          localStorage.removeItem('api_key');
-          console.warn('Invalid API key removed from localStorage. Please refresh the page.');
+      // 401 Unauthorized 처리
+      if (response.status === 401 && !isRetry) {
+        // JWT 토큰이 만료된 경우 자동 갱신 시도
+        if (accessToken) {
+          console.log('Access token expired, attempting refresh...');
+          const newAccessToken = await refreshAccessToken();
+
+          if (newAccessToken) {
+            // 토큰 갱신 성공 시 요청 재시도
+            console.log('Token refreshed successfully, retrying request...');
+            return fetchApi<T>(endpoint, options, true);
+          } else {
+            // 토큰 갱신 실패 시 모든 토큰 삭제
+            console.warn('Token refresh failed, clearing tokens...');
+            clearAuthTokens();
+
+            // 로그인 페이지로 리다이렉트 (브라우저 환경에서만)
+            if (typeof window !== 'undefined') {
+              window.location.href = '/login?session_expired=true';
+            }
+          }
+        } else {
+          // API Key 인증 실패
+          if (typeof window !== 'undefined') {
+            const storedKey = getApiKey();
+            // Only clear if localStorage key is different from env var
+            if (storedKey && storedKey !== process.env.NEXT_PUBLIC_API_KEY) {
+              localStorage.removeItem('api_key');
+              console.warn('Invalid API key removed from localStorage. Please refresh the page.');
+            }
+          }
         }
       }
 

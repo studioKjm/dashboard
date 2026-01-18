@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getHealth } from '@/lib/api';
 import { HealthStatus } from '@/types';
-import { removeApiKey } from '@/lib/auth';
+import { removeApiKey, clearAuthTokens } from '@/lib/auth';
 
 export default function Header() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
@@ -30,7 +30,11 @@ export default function Header() {
   }, []);
 
   function handleLogout() {
+    // JWT 토큰 제거
+    clearAuthTokens();
+    // API Key 제거 (하위 호환성)
     removeApiKey();
+    // 로그인 페이지로 이동
     router.push('/login');
     router.refresh();
   }
@@ -71,19 +75,6 @@ export default function Header() {
               {isHealthy ? 'System Healthy' : 'System Issue'}
             </span>
           </div>
-
-          {/* n8n Link */}
-          <a
-            href="http://localhost:5678"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-            </svg>
-            n8n
-          </a>
 
           {/* Notifications */}
           <button className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100">
