@@ -19,9 +19,13 @@ export default function ReportGeneratorPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [reportType, setReportType] = useState<ReportType>('general');
-  const [selectedFormats, setSelectedFormats] = useState<OutputFormat[]>(['pdf', 'docx', 'txt']);
+  const [selectedFormats, setSelectedFormats] = useState<OutputFormat[]>(['pdf', 'docx', 'txt', 'md']);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState<'title' | 'content' | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [generatedReport, setGeneratedReport] = useState<GeneratedReport | null>(null);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedContent, setEditedContent] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9001';
@@ -49,6 +53,94 @@ export default function ReportGeneratorPage() {
         ? prev.filter((f) => f !== format)
         : [...prev, format]
     );
+  };
+
+  const handleEnhanceText = async (type: 'title' | 'content') => {
+    const text = type === 'title' ?
+      (generatedReport ? editedTitle : title) :
+      (generatedReport ? editedContent : content);
+
+    if (!text.trim()) {
+      setError(`${type === 'title' ? '제목' : '내용'}을 입력해주세요.`);
+      return;
+    }
+
+    setIsEnhancing(type);
+    setError(null);
+
+    try {
+      const apiKey = localStorage.getItem('api_key') || 'autom-api-key-2026';
+      const response = await fetch(`${API_URL}/api/v1/reports/enhance-text`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey,
+        },
+        body: JSON.stringify({
+          text,
+          type,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('AI 보정에 실패했습니다.');
+      }
+
+      const data = await response.json();
+
+      if (generatedReport) {
+        // Edit mode
+        if (type === 'title') {
+          setEditedTitle(data.enhanced_text);
+        } else {
+          setEditedContent(data.enhanced_text);
+        }
+      } else {
+        // Input mode
+        if (type === 'title') {
+          setTitle(data.enhanced_text);
+        } else {
+          setContent(data.enhanced_text);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'AI 보정 중 오류가 발생했습니다.');
+    } finally {
+      setIsEnhancing(null);
+    }
+  };
+
+  const handleSaveChanges = async () => {
+    if (!generatedReport) return;
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      const apiKey = localStorage.getItem('api_key') || 'autom-api-key-2026';
+      const response = await fetch(`${API_URL}/api/v1/reports/${generatedReport.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey,
+        },
+        body: JSON.stringify({
+          title: editedTitle,
+          content: editedContent,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('저장에 실패했습니다.');
+      }
+
+      const data = await response.json();
+      setGeneratedReport(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -89,6 +181,8 @@ export default function ReportGeneratorPage() {
 
       const data = await response.json();
       setGeneratedReport(data);
+      setEditedTitle(data.title);
+      setEditedContent(data.content);
     } catch (err) {
       setError(err instanceof Error ? err.message : '보고서 생성 중 오류가 발생했습니다.');
     } finally {
@@ -118,7 +212,7 @@ export default function ReportGeneratorPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${generatedReport.title}.${format}`;
+      a.download = `${editedTitle}.${format}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -134,6 +228,8 @@ export default function ReportGeneratorPage() {
     setReportType('general');
     setSelectedFormats(['pdf', 'docx', 'txt']);
     setGeneratedReport(null);
+    setEditedTitle('');
+    setEditedContent('');
     setError(null);
   };
 
@@ -178,14 +274,33 @@ export default function ReportGeneratorPage() {
             <label className="block text-sm font-medium text-gray-900 mb-2">
               보고서 제목 *
             </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: 2024년 3분기 매출 분석 보고서"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              disabled={isGenerating}
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="예: 2024년 3분기 매출 분석 보고서"
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                disabled={isGenerating}
+              />
+              <button
+                onClick={() => handleEnhanceText('title')}
+                disabled={isGenerating || isEnhancing === 'title' || !title.trim()}
+                className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="AI로 제목 보정하기"
+              >
+                {isEnhancing === 'title' ? (
+                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Report Type */}
@@ -217,16 +332,43 @@ export default function ReportGeneratorPage() {
             <label className="block text-sm font-medium text-gray-900 mb-2">
               보고서 내용 *
             </label>
-            <textarea
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="보고서의 주요 내용을 입력하세요. AI가 내용을 보강하고 전문적인 형식으로 재구성합니다.&#10;&#10;예시:&#10;- 3분기 매출이 전년 대비 15% 증가했습니다&#10;- 주요 성장 동력은 온라인 채널입니다&#10;- 신제품 라인업이 긍정적인 반응을 얻었습니다"
-              rows={12}
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
-              disabled={isGenerating}
-            />
-            <div className="mt-2 text-xs text-gray-500">
-              {content.length} 자 / AI가 내용을 분석하여 전문적인 보고서로 재구성합니다
+            <div className="flex flex-col gap-2">
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="보고서의 주요 내용을 입력하세요. AI가 내용을 보강하고 전문적인 형식으로 재구성합니다.&#10;&#10;예시:&#10;- 3분기 매출이 전년 대비 15% 증가했습니다&#10;- 주요 성장 동력은 온라인 채널입니다&#10;- 신제품 라인업이 긍정적인 반응을 얻었습니다"
+                rows={12}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
+                disabled={isGenerating}
+              />
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-gray-500">
+                  {content.length} 자 / AI가 내용을 분석하여 전문적인 보고서로 재구성합니다
+                </div>
+                <button
+                  onClick={() => handleEnhanceText('content')}
+                  disabled={isGenerating || isEnhancing === 'content' || !content.trim()}
+                  className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="AI로 내용 보정하기"
+                >
+                  {isEnhancing === 'content' ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      보정 중...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                      </svg>
+                      AI 보정
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -293,28 +435,120 @@ export default function ReportGeneratorPage() {
               </svg>
               <div className="ml-3">
                 <p className="text-sm font-medium text-green-800">
-                  보고서가 성공적으로 생성되었습니다!
+                  보고서가 성공적으로 생성되었습니다! 제목과 내용을 수정할 수 있습니다.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Report Preview */}
+          {/* Editable Report */}
           <div className="rounded-xl bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">보고서 미리보기</h2>
-              <button
-                onClick={handleReset}
-                className="text-sm text-gray-600 hover:text-gray-900"
-              >
-                새 보고서 작성
-              </button>
+              <h2 className="text-lg font-semibold text-gray-900">보고서 편집</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveChanges}
+                  disabled={isSaving}
+                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isSaving ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      저장 중...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+                      </svg>
+                      변경사항 저장
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleReset}
+                  className="text-sm text-gray-600 hover:text-gray-900 px-4 py-2 border border-gray-300 rounded-lg"
+                >
+                  새 보고서 작성
+                </button>
+              </div>
             </div>
 
-            <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">{generatedReport.title}</h3>
-              <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
-                {generatedReport.content}
+            {/* Editable Title */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                보고서 제목
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={editedTitle}
+                  onChange={(e) => setEditedTitle(e.target.value)}
+                  className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-lg font-semibold focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <button
+                  onClick={() => handleEnhanceText('title')}
+                  disabled={isEnhancing === 'title' || !editedTitle.trim()}
+                  className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="AI로 제목 보정하기"
+                >
+                  {isEnhancing === 'title' ? (
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Editable Content */}
+            <div>
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                보고서 내용
+              </label>
+              <div className="flex flex-col gap-2">
+                <textarea
+                  value={editedContent}
+                  onChange={(e) => setEditedContent(e.target.value)}
+                  rows={20}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 font-mono text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
+                />
+                <div className="flex items-center justify-between">
+                  <div className="text-xs text-gray-500">
+                    {editedContent.length} 자
+                  </div>
+                  <button
+                    onClick={() => handleEnhanceText('content')}
+                    disabled={isEnhancing === 'content' || !editedContent.trim()}
+                    className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="AI로 내용 보정하기"
+                  >
+                    {isEnhancing === 'content' ? (
+                      <>
+                        <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        보정 중...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                        </svg>
+                        AI 보정
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -349,49 +583,51 @@ export default function ReportGeneratorPage() {
       )}
 
       {/* Info Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
-          <div className="flex items-start gap-3">
-            <svg className="h-6 w-6 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-            </svg>
-            <div>
-              <h3 className="text-sm font-medium text-blue-900">AI 보강</h3>
-              <p className="mt-1 text-xs text-blue-700">
-                입력된 내용을 분석하여 전문적인 문장으로 재구성합니다
-              </p>
+      {!generatedReport && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+            <div className="flex items-start gap-3">
+              <svg className="h-6 w-6 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+              </svg>
+              <div>
+                <h3 className="text-sm font-medium text-blue-900">AI 보강</h3>
+                <p className="mt-1 text-xs text-blue-700">
+                  입력된 내용을 분석하여 전문적인 문장으로 재구성합니다
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="rounded-lg bg-purple-50 border border-purple-200 p-4">
-          <div className="flex items-start gap-3">
-            <svg className="h-6 w-6 text-purple-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-            </svg>
-            <div>
-              <h3 className="text-sm font-medium text-purple-900">다양한 형식</h3>
-              <p className="mt-1 text-xs text-purple-700">
-                PDF, Word, Excel 등 다양한 형식으로 내보내기 가능합니다
-              </p>
+          <div className="rounded-lg bg-purple-50 border border-purple-200 p-4">
+            <div className="flex items-start gap-3">
+              <svg className="h-6 w-6 text-purple-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+              <div>
+                <h3 className="text-sm font-medium text-purple-900">다양한 형식</h3>
+                <p className="mt-1 text-xs text-purple-700">
+                  PDF, Word, Excel 등 다양한 형식으로 내보내기 가능합니다
+                </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="rounded-lg bg-green-50 border border-green-200 p-4">
-          <div className="flex items-start gap-3">
-            <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-            </svg>
-            <div>
-              <h3 className="text-sm font-medium text-green-900">빠른 생성</h3>
-              <p className="mt-1 text-xs text-green-700">
-                몇 초 안에 완성도 높은 보고서를 생성합니다
-              </p>
+          <div className="rounded-lg bg-green-50 border border-green-200 p-4">
+            <div className="flex items-start gap-3">
+              <svg className="h-6 w-6 text-green-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+              </svg>
+              <div>
+                <h3 className="text-sm font-medium text-green-900">빠른 생성</h3>
+                <p className="mt-1 text-xs text-green-700">
+                  몇 초 안에 완성도 높은 보고서를 생성합니다
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
