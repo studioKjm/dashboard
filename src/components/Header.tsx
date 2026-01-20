@@ -5,38 +5,56 @@ import { useRouter } from 'next/navigation';
 import { getHealth } from '@/lib/api';
 import { HealthStatus } from '@/types';
 import { removeApiKey, clearAuthTokens } from '@/lib/auth';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Header() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [isHealthy, setIsHealthy] = useState(true);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const { user, clearUser } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     const checkHealth = async () => {
-      const result = await getHealth();
-      if (result.success && result.data) {
-        setHealth(result.data);
-        setIsHealthy(result.data.status === 'healthy');
-      } else {
+      try {
+        const result = await getHealth();
+        if (result.success && result.data) {
+          setHealth(result.data);
+          setIsHealthy(result.data.status === 'healthy');
+        } else {
+          setIsHealthy(false);
+        }
+      } catch (error) {
+        // 조용히 무시 - 페이지 로딩에 영향 없음
         setIsHealthy(false);
       }
     };
 
-    checkHealth();
-    const interval = setInterval(checkHealth, 30000); // Check every 30 seconds
+    // 페이지 로딩 후 1초 뒤에 health check 시작 (페이지 로딩 blocking 방지)
+    const initialTimeout = setTimeout(() => {
+      checkHealth();
+    }, 1000);
 
-    return () => clearInterval(interval);
+    // 이후 60초마다 체크 (30초 → 60초로 변경하여 부하 감소)
+    const interval = setInterval(checkHealth, 60000);
+
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
   }, []);
 
   function handleLogout() {
+    // 드롭다운 닫기
+    setShowUserMenu(false);
     // JWT 토큰 제거
     clearAuthTokens();
     // API Key 제거 (하위 호환성)
     removeApiKey();
+    // Context에서 사용자 정보 제거
+    clearUser();
     // 로그인 페이지로 이동
     router.push('/login');
-    router.refresh();
   }
 
   return (
@@ -85,35 +103,37 @@ export default function Header() {
           </button>
 
           {/* User Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50"
-            >
-              <div className="h-6 w-6 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-medium">
-                A
-              </div>
-              <span className="text-sm font-medium text-gray-700">Admin</span>
-              <svg className={`h-4 w-4 text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-              </svg>
-            </button>
+          {user && (
+            <div className="relative">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50"
+              >
+                <div className="h-6 w-6 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-medium">
+                  {user.email.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-sm font-medium text-gray-700">{user.role === 'admin' ? 'Admin' : 'User'}</span>
+                <svg className={`h-4 w-4 text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </button>
 
-            {/* Dropdown Menu */}
-            {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-48 rounded-lg bg-white shadow-lg border border-gray-200 py-1">
-                <button
-                  onClick={handleLogout}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-                  </svg>
-                  로그아웃
-                </button>
-              </div>
-            )}
-          </div>
+              {/* Dropdown Menu */}
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-48 rounded-lg bg-white shadow-lg border border-gray-200 py-1">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                    </svg>
+                    로그아웃
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </header>

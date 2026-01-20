@@ -52,7 +52,7 @@ export function isAuthenticated(): boolean {
 
 /**
  * Set JWT tokens in localStorage and cookie
- * @param accessToken - Access token (15 min expiry)
+ * @param accessToken - Access token (1 day expiry)
  * @param refreshToken - Refresh token (7 days expiry)
  */
 export function setAuthTokens(accessToken: string, refreshToken: string): void {
@@ -62,8 +62,8 @@ export function setAuthTokens(accessToken: string, refreshToken: string): void {
     localStorage.setItem('refresh_token', refreshToken);
 
     // Cookie에도 저장 (middleware에서 사용)
-    // access_token: 15분 (900초)
-    document.cookie = `access_token=${accessToken}; path=/; max-age=900; SameSite=Strict`;
+    // access_token: 1일 (86400초)
+    document.cookie = `access_token=${accessToken}; path=/; max-age=86400; SameSite=Strict`;
     // refresh_token: 7일 (604800초)
     document.cookie = `refresh_token=${refreshToken}; path=/; max-age=604800; SameSite=Strict`;
   }

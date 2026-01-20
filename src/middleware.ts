@@ -4,6 +4,9 @@ import type { NextRequest } from 'next/server';
 // 인증이 필요 없는 공개 경로
 const publicPaths = ['/login', '/register'];
 
+// ADMIN 이상 권한이 필요한 경로
+const adminPaths = ['/admin'];
+
 /**
  * JWT 토큰 검증 (간단한 형식 확인)
  * 실제 검증은 서버에서 수행되므로 여기서는 토큰 존재 여부만 확인
@@ -13,6 +16,38 @@ function isValidToken(token: string | undefined): boolean {
   // JWT 형식 확인 (xxx.yyy.zzz)
   const parts = token.split('.');
   return parts.length === 3;
+}
+
+/**
+ * JWT 토큰에서 payload 추출 (디코딩만, 검증 X)
+ */
+function decodeJWT(token: string): any {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+
+    const payload = parts[1];
+    const decoded = Buffer.from(payload, 'base64').toString('utf-8');
+    return JSON.parse(decoded);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 사용자 권한이 경로 접근에 충분한지 확인
+ */
+function hasRequiredRole(userRole: string | undefined, pathname: string): boolean {
+  // ADMIN 경로 확인
+  const isAdminPath = adminPaths.some(path => pathname.startsWith(path));
+
+  if (isAdminPath) {
+    // ADMIN 또는 SUPER_ADMIN만 접근 가능
+    return userRole === 'admin' || userRole === 'super_admin';
+  }
+
+  // 일반 경로는 모든 인증된 사용자 접근 가능
+  return true;
 }
 
 /**
@@ -35,10 +70,23 @@ export function middleware(request: NextRequest) {
   // JWT 토큰 확인 (쿠키에서) - 우선순위 1
   const accessToken = getTokenFromCookie(request);
   if (isValidToken(accessToken)) {
+    // 토큰이 유효하면 payload 디코딩해서 권한 확인
+    const payload = decodeJWT(accessToken!);
+    const userRole = payload?.role;
+
+    // 권한 확인
+    if (!hasRequiredRole(userRole, pathname)) {
+      // 권한 부족 시 홈으로 리다이렉트 (또는 403 페이지)
+      const homeUrl = new URL('/', request.url);
+      homeUrl.searchParams.set('error', 'insufficient_permissions');
+      return NextResponse.redirect(homeUrl);
+    }
+
     return NextResponse.next();
   }
 
   // API Key 확인 (쿠키에서) - 우선순위 2 (하위 호환성)
+  // API Key는 모든 권한을 가진 것으로 간주
   const apiKey = request.cookies.get('api_key')?.value;
   if (apiKey) {
     return NextResponse.next();

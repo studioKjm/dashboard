@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { setAuthTokens, isAuthenticated } from '@/lib/auth';
+import { useAuth } from '@/contexts/AuthContext';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
@@ -12,6 +13,7 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { updateUser } = useAuth();
 
   useEffect(() => {
     // 세션 만료 메시지 표시
@@ -73,10 +75,12 @@ function LoginForm() {
       // JWT 토큰 저장
       setAuthTokens(data.access_token, data.refresh_token);
 
+      // Context 업데이트
+      updateUser();
+
       // 리다이렉트 경로 또는 홈으로 이동
       const redirect = searchParams.get('redirect') || '/';
       router.push(redirect);
-      router.refresh(); // Force refresh to apply middleware
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -99,7 +103,7 @@ function LoginForm() {
         </div>
 
         {/* Login Form */}
-        <form onSubmit={handleLogin} className="space-y-6">
+        <form onSubmit={handleLogin} className="space-y-6" autoComplete="off">
           {/* Email Field */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -110,11 +114,11 @@ function LoginForm() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="user@autom.local"
+              placeholder=""
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
               required
               disabled={loading}
-              autoComplete="email"
+              autoComplete="off"
             />
           </div>
 
@@ -133,7 +137,7 @@ function LoginForm() {
                 className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-800 dark:text-white"
                 required
                 disabled={loading}
-                autoComplete="current-password"
+                autoComplete="off"
               />
               <button
                 type="button"

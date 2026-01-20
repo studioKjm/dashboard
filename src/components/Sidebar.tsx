@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navigation = [
   { name: '대시보드', href: '/', icon: HomeIcon },
@@ -99,6 +100,7 @@ function UsageIcon({ className }: { className?: string }) {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   return (
     <div className="flex h-full w-64 flex-col bg-gray-900">
@@ -138,17 +140,19 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-gray-800 p-4">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-gray-700 flex items-center justify-center">
-            <span className="text-sm font-medium text-white">A</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">Admin</p>
-            <p className="text-xs text-gray-400 truncate">admin@autom.local</p>
+      {user && (
+        <div className="border-t border-gray-800 p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-full bg-gray-700 flex items-center justify-center">
+              <span className="text-sm font-medium text-white">{user.email.charAt(0).toUpperCase()}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white truncate">{user.role === 'admin' ? 'Admin' : 'User'}</p>
+              <p className="text-xs text-gray-400 truncate">{user.email}</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

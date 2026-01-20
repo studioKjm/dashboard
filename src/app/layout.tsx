@@ -4,6 +4,7 @@ import './globals.css';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import ChatWidget from '@/components/ChatWidget';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -20,24 +21,26 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={inter.className}>
-        <div className="flex h-screen bg-gray-100">
-          {/* Sidebar */}
-          <Sidebar />
+        <AuthProvider>
+          <div className="flex h-screen bg-gray-100">
+            {/* Sidebar */}
+            <Sidebar />
 
-          {/* Main Content */}
-          <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Header */}
-            <Header />
+            {/* Main Content */}
+            <div className="flex flex-1 flex-col overflow-hidden">
+              {/* Header */}
+              <Header />
 
-            {/* Page Content */}
-            <main className="flex-1 overflow-y-auto p-6">
-              {children}
-            </main>
+              {/* Page Content */}
+              <main className="flex-1 overflow-y-auto p-6">
+                {children}
+              </main>
+            </div>
           </div>
-        </div>
 
-        {/* Floating Chatbot */}
-        <ChatWidget />
+          {/* Floating Chatbot */}
+          <ChatWidget />
+        </AuthProvider>
       </body>
     </html>
   );
