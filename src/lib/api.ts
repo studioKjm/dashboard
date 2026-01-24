@@ -106,6 +106,21 @@ async function fetchApi<T>(
   }
 }
 
+// Generic API request function for new endpoints
+export async function apiRequest(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<any> {
+  const response = await fetchApi<any>(endpoint, options);
+  if (response.success && response.data) {
+    return response.data;
+  }
+  return {
+    success: false,
+    error: response.error || 'Request failed',
+  };
+}
+
 // Health Check
 export async function getHealth(): Promise<ApiResponse<HealthStatus>> {
   return fetchApi<HealthStatus>('/health');

@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 type ReportType = 'business' | 'research' | 'technical' | 'marketing' | 'financial' | 'general';
 type OutputFormat = 'pdf' | 'docx' | 'txt' | 'md' | 'xlsx';
+type GeminiModel = 'gemini-2.5-flash' | 'gemini-2.0-flash' | 'gemini-2.0-flash-lite';
+type ContentFormat = 'markdown' | 'plain';
 
 interface GeneratedReport {
   id: string;
@@ -13,13 +15,49 @@ interface GeneratedReport {
   type: ReportType;
   created_at: string;
   available_formats: OutputFormat[];
+  model?: string;
+  tokens_used?: {
+    input: number;
+    output: number;
+    total: number;
+  };
 }
+
+// Gemini API 가격 정보 - 2026년 1월 기준
+// 출처: https://ai.google.dev/gemini-api/docs/pricing
+// 테스트 완료: gemini-2.5-flash, gemini-2.0-flash, gemini-2.0-flash-lite 모두 정상 작동
+// 평균 보고서 1개당 토큰 사용량: 입력 ~170, 출력 ~2,000-3,500
+const MODEL_PRICING = {
+  'gemini-2.5-flash': {
+    input: 0.30,
+    output: 2.50,
+    name: 'Gemini 2.5 Flash',
+    speed: '빠름',
+    avgCostPerReport: 0.009, // 평균 보고서 1개당 약 $0.009
+  },
+  'gemini-2.0-flash': {
+    input: 0.10,
+    output: 0.40,
+    name: 'Gemini 2.0 Flash',
+    speed: '빠름',
+    avgCostPerReport: 0.0008, // 평균 보고서 1개당 약 $0.0008
+  },
+  'gemini-2.0-flash-lite': {
+    input: 0.075,
+    output: 0.30,
+    name: 'Gemini 2.0 Flash Lite',
+    speed: '매우 빠름',
+    avgCostPerReport: 0.0006, // 평균 보고서 1개당 약 $0.0006 (가장 저렴)
+  },
+} as const;
 
 export default function ReportGeneratorPage() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [reportType, setReportType] = useState<ReportType>('general');
   const [selectedFormats, setSelectedFormats] = useState<OutputFormat[]>(['pdf', 'docx', 'txt', 'md']);
+  const [selectedModel, setSelectedModel] = useState<GeminiModel>('gemini-2.5-flash');
+  const [contentFormat, setContentFormat] = useState<ContentFormat>('markdown');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState<'title' | 'content' | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -28,7 +66,47 @@ export default function ReportGeneratorPage() {
   const [editedContent, setEditedContent] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  // localStorage에서 보고서 복원
+  useEffect(() => {
+    const savedReport = localStorage.getItem('currentReport');
+    if (savedReport) {
+      try {
+        const report = JSON.parse(savedReport) as GeneratedReport;
+        setGeneratedReport(report);
+        setEditedTitle(report.title);
+        setEditedContent(report.content);
+      } catch (e) {
+        console.error('Failed to restore report from localStorage:', e);
+      }
+    }
+  }, []);
+
+  // 보고서 변경 시 localStorage에 저장
+  useEffect(() => {
+    if (generatedReport) {
+      const reportToSave = {
+        ...generatedReport,
+        title: editedTitle,
+        content: editedContent,
+      };
+      localStorage.setItem('currentReport', JSON.stringify(reportToSave));
+    }
+  }, [generatedReport, editedTitle, editedContent]);
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:9001';
+
+  // 예상 비용 계산 함수
+  const calculateEstimatedCost = (text: string, model: GeminiModel): number => {
+    // 대략적인 토큰 수 추정 (한글: 2자당 1토큰, 영문: 4자당 1토큰)
+    const estimatedInputTokens = Math.ceil(text.length / 2);
+    const estimatedOutputTokens = estimatedInputTokens * 3; // 보고서 생성 시 약 3배로 확장
+
+    const pricing = MODEL_PRICING[model];
+    const inputCost = (estimatedInputTokens / 1000000) * pricing.input;
+    const outputCost = (estimatedOutputTokens / 1000000) * pricing.output;
+
+    return inputCost + outputCost;
+  };
 
   const reportTypes: { value: ReportType; label: string; description: string }[] = [
     { value: 'general', label: '일반 보고서', description: '범용적인 보고서 형식' },
@@ -79,6 +157,7 @@ export default function ReportGeneratorPage() {
         body: JSON.stringify({
           text,
           type,
+          model: selectedModel,
         }),
       });
 
@@ -171,6 +250,8 @@ export default function ReportGeneratorPage() {
           content,
           type: reportType,
           output_formats: selectedFormats,
+          model: selectedModel,
+          content_format: contentFormat,
         }),
       });
 
@@ -231,6 +312,8 @@ export default function ReportGeneratorPage() {
     setEditedTitle('');
     setEditedContent('');
     setError(null);
+    // localStorage에서 보고서 제거
+    localStorage.removeItem('currentReport');
   };
 
   return (
@@ -325,6 +408,105 @@ export default function ReportGeneratorPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Content Format Selection */}
+          <div className="rounded-xl bg-white p-6 shadow-sm">
+            <label className="block text-sm font-medium text-gray-900 mb-3">
+              내용 출력 형식
+            </label>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                onClick={() => setContentFormat('markdown')}
+                disabled={isGenerating}
+                className={`rounded-lg border-2 p-4 text-left transition-all ${
+                  contentFormat === 'markdown'
+                    ? 'border-indigo-500 bg-indigo-50'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                } ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <div className="flex items-center gap-2">
+                  <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+                  </svg>
+                  <div className="font-medium text-gray-900">마크다운 (Markdown)</div>
+                </div>
+                <div className="mt-2 text-xs text-gray-500">
+                  구조화된 서식 (##, **, * 등) - PDF/Word 변환에 최적
+                </div>
+              </button>
+              <button
+                onClick={() => setContentFormat('plain')}
+                disabled={isGenerating}
+                className={`rounded-lg border-2 p-4 text-left transition-all ${
+                  contentFormat === 'plain'
+                    ? 'border-indigo-500 bg-indigo-50'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                } ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <div className="flex items-center gap-2">
+                  <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                  <div className="font-medium text-gray-900">일반 텍스트 (Plain Text)</div>
+                </div>
+                <div className="mt-2 text-xs text-gray-500">
+                  마크다운 문법 없는 깔끔한 텍스트 - 읽기 쉬움
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* AI Model Selection */}
+          <div className="rounded-xl bg-white p-6 shadow-sm">
+            <label className="block text-sm font-medium text-gray-900 mb-3">
+              AI 모델 선택
+            </label>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {(Object.keys(MODEL_PRICING) as GeminiModel[]).map((model) => {
+                const info = MODEL_PRICING[model];
+                const reportsFor1Dollar = Math.floor(1 / info.avgCostPerReport);
+                return (
+                  <button
+                    key={model}
+                    onClick={() => setSelectedModel(model)}
+                    disabled={isGenerating}
+                    className={`rounded-lg border-2 p-4 text-left transition-all ${
+                      selectedModel === model
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    } ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <div className="font-medium text-gray-900">{info.name}</div>
+                    <div className="mt-1 text-xs text-gray-500">속도: {info.speed}</div>
+                    <div className="mt-1 text-xs text-indigo-600 font-semibold">
+                      $1로 약 {reportsFor1Dollar.toLocaleString()}개 보고서 생성
+                    </div>
+                    <div className="mt-1 text-xs text-gray-400">
+                      (보고서 1개당 평균 ${info.avgCostPerReport.toFixed(4)})
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {/* Estimated Cost */}
+            {content.trim() && (
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <svg className="h-5 w-5 text-blue-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+                  </svg>
+                  <div>
+                    <div className="text-sm font-medium text-blue-900">
+                      이 보고서 예상 비용: ${calculateEstimatedCost(content, selectedModel).toFixed(4)} USD
+                    </div>
+                    <div className="text-xs text-blue-700 mt-1">
+                      예상 토큰: 입력 약 {Math.ceil(content.length / 2).toLocaleString()} · 출력 약 {(Math.ceil(content.length / 2) * 3).toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Report Content */}
@@ -552,11 +734,43 @@ export default function ReportGeneratorPage() {
               </div>
             </div>
 
-            <div className="mt-4 flex items-center gap-2 text-xs text-gray-500">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              생성 시간: {new Date(generatedReport.created_at).toLocaleString('ko-KR')}
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                생성 시간: {new Date(generatedReport.created_at).toLocaleString('ko-KR')}
+              </div>
+              {generatedReport.model && (
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                  </svg>
+                  AI 모델: {MODEL_PRICING[generatedReport.model as GeminiModel]?.name || generatedReport.model}
+                </div>
+              )}
+              {generatedReport.tokens_used && generatedReport.model && (
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                  </svg>
+                  토큰 사용: {generatedReport.tokens_used.input.toLocaleString()} 입력 + {generatedReport.tokens_used.output.toLocaleString()} 출력 = {generatedReport.tokens_used.total.toLocaleString()} 총
+                  {(() => {
+                    const pricing = MODEL_PRICING[generatedReport.model as GeminiModel];
+                    if (pricing) {
+                      const actualCost =
+                        (generatedReport.tokens_used.input / 1000000) * pricing.input +
+                        (generatedReport.tokens_used.output / 1000000) * pricing.output;
+                      return (
+                        <span className="ml-2 text-indigo-600 font-semibold">
+                          (실제 비용: ${actualCost.toFixed(4)})
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              )}
             </div>
           </div>
 

@@ -44,6 +44,24 @@ export default function Header() {
     };
   }, []);
 
+  // 드롭다운 외부 클릭시 닫기
+  useEffect(() => {
+    if (!showUserMenu) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      // 드롭다운 메뉴나 버튼이 아닌 곳을 클릭하면 닫기
+      if (!target.closest('[data-user-menu]')) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showUserMenu]);
+
   function handleLogout() {
     // 드롭다운 닫기
     setShowUserMenu(false);
@@ -104,7 +122,7 @@ export default function Header() {
 
           {/* User Menu */}
           {user && (
-            <div className="relative">
+            <div className="relative" data-user-menu>
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-1.5 hover:bg-gray-50"
